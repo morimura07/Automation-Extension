@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discord Auto Messenger</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-content">
+        <div class="icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 17L12 22L22 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="header-text">
+          <h1>Discord Auto Messenger</h1>
+          <p>Intelligent server automation</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="content">
+      <!-- Status Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Status</h2>
+          <button id="clearBtn" class="btn-icon" title="Reset">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        <div id="status" class="status-badge">Ready</div>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-label">Current</span>
+            <span id="currentServer" class="stat-value">-</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Total</span>
+            <span id="totalServers" class="stat-value">-</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Completed</span>
+            <span id="clickedCount" class="stat-value">0</span>
+          </div>
+        </div>
+        <div class="progress-bar">
+          <div id="progressBar" class="progress-fill"></div>
+        </div>
+      </div>
+
+      <!-- Messages Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Messages</h2>
+          <div class="input-group-inline">
+            <label for="messageCount">Count:</label>
+            <input type="number" id="messageCount" value="1" min="1" max="5">
+            <button id="clearMessagesBtn" class="btn-icon" title="Clear all messages">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="messageInputs" class="message-list">
+          <div class="message-input-wrapper">
+            <label>Message 1</label>
+            <textarea id="message1" rows="3" placeholder="Enter your message..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Card -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Settings</h2>
+        </div>
+        <div class="settings-grid">
+          <div class="setting-row">
+            <label for="chunkSize">Words per chunk</label>
+            <input type="number" id="chunkSize" value="3" min="2" max="10">
+          </div>
+          <div class="setting-row">
+            <label for="chunkDelay">Chunk delay (ms)</label>
+            <input type="number" id="chunkDelay" value="200" min="1" max="1000">
+          </div>
+          <div class="setting-row">
+            <label for="loop">Loop continuously</label>
+            <input type="checkbox" id="loop">
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <button id="startBtn" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Start Automation
+        </button>
+        <button id="stopBtn" class="btn btn-secondary" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="6" y="6" width="12" height="12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Stop
+        </button>
+      </div>
+
+      <!-- Activity Log -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Activity Log</h2>
+        </div>
+        <div id="log" class="log-container"></div>
+      </div>
+    </div>
+  </div>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

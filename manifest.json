@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Discord Auto Messenger",
+  "version": "2.0.0",
+  "description": "Automatically navigate Discord servers, select channels, and post messages with intelligent automation",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "https://discord.com/*"
+  ],
+  "action": {
+    "default_title": "Discord Auto Messenger"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
