@@ -13,12 +13,54 @@ const elements = {
   clearBtn: document.getElementById('clearBtn'),
   clearMessagesBtn: document.getElementById('clearMessagesBtn'),
   loopInput: document.getElementById('loop'),
-  chunkSizeInput: document.getElementById('chunkSize'),
-  chunkDelayInput: document.getElementById('chunkDelay'),
+  serverDelayInput: document.getElementById('serverDelay'),
   messageCountInput: document.getElementById('messageCount'),
   messageInputs: document.getElementById('messageInputs'),
-  log: document.getElementById('log')
+  log: document.getElementById('log'),
+  resultsCard: document.getElementById('resultsCard'),
+  successCount: document.getElementById('successCount'),
+  failedCount: document.getElementById('failedCount'),
+  skippedCount: document.getElementById('skippedCount'),
+  resultsDetails: document.getElementById('resultsDetails'),
+  toggleResultsBtn: document.getElementById('toggleResultsBtn'),
+  themeToggle: document.getElementById('themeToggle')
 };
+
+// Results tracking
+let results = {
+  success: [],
+  failed: [],
+  skipped: []
+};
+
+// Theme management
+function initTheme() {
+  // Load saved theme preference
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  setTheme(savedTheme);
+}
+
+function setTheme(theme) {
+  const sunIcon = elements.themeToggle.querySelector('.sun-icon');
+  const moonIcon = elements.themeToggle.querySelector('.moon-icon');
+  
+  if (theme === 'light') {
+    document.body.classList.add('light-mode');
+    sunIcon.style.display = 'none';
+    moonIcon.style.display = 'block';
+    localStorage.setItem('theme', 'light');
+  } else {
+    document.body.classList.remove('light-mode');
+    sunIcon.style.display = 'block';
+    moonIcon.style.display = 'none';
+    localStorage.setItem('theme', 'dark');
+  }
+}
+
+function toggleTheme() {
+  const isLightMode = document.body.classList.contains('light-mode');
+  setTheme(isLightMode ? 'dark' : 'light');
+}
 
 // Handle message count change
 elements.messageCountInput.addEventListener('change', () => {
@@ -88,6 +130,14 @@ async function startClicking() {
   currentTabId = tab.id;
   isRunning = true;
   
+  // Reset results
+  results = {
+    success: [],
+    failed: [],
+    skipped: []
+  };
+  elements.resultsCard.style.display = 'none';
+  
   elements.startBtn.disabled = true;
   elements.stopBtn.disabled = false;
   
@@ -101,8 +151,8 @@ async function startClicking() {
   addLog('Starting Discord server clicker...', 'info');
 
   const loop = elements.loopInput.checked;
-  const chunkSize = parseInt(elements.chunkSizeInput.value);
-  const chunkDelay = parseInt(elements.chunkDelayInput.value);
+  // Server switch delay is entered in seconds; convert to milliseconds
+  const serverDelay = Math.round((parseFloat(elements.serverDelayInput.value) || 0) * 1000);
   const messageCount = parseInt(elements.messageCountInput.value);
   
   // Collect all messages
@@ -131,9 +181,9 @@ async function startClicking() {
     // Then execute the clicking function
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: (loop, chunkSize, chunkDelay, messages) => {
+      func: (loop, serverDelay, messages) => {
         if (typeof window.clickServers === 'function') {
-          window.clickServers(loop, chunkSize, chunkDelay, messages);
+          window.clickServers(loop, serverDelay, messages);
         } else {
           chrome.runtime.sendMessage({
             type: 'error',
@@ -141,7 +191,7 @@ async function startClicking() {
           });
         }
       },
-      args: [loop, chunkSize, chunkDelay, messages]
+      args: [loop, serverDelay, messages]
     });
   } catch (error) {
     addLog(`Error: ${error.message}`, 'error');
@@ -184,6 +234,14 @@ function clearAll() {
   // Clear log
   elements.log.innerHTML = '';
   
+  // Hide results
+  elements.resultsCard.style.display = 'none';
+  results = {
+    success: [],
+    failed: [],
+    skipped: []
+  };
+  
   addLog('Cleared and reset', 'info');
 }
 
@@ -201,6 +259,86 @@ function clearAllMessages() {
   addLog('All messages cleared', 'info');
 }
 
+// Display results summary
+function displayResults() {
+  elements.resultsCard.style.display = 'block';
+  
+  // Update counts
+  elements.successCount.textContent = results.success.length;
+  elements.failedCount.textContent = results.failed.length;
+  elements.skippedCount.textContent = results.skipped.length;
+  
+  // Build table
+  const tbody = document.getElementById('resultsTableBody');
+  tbody.innerHTML = '';
+  
+  // Combine all results and sort: failed first, then skipped, then success
+  const allResults = [
+    ...results.failed.map(r => ({ ...r, status: 'failed' })),
+    ...results.skipped.map(r => ({ ...r, status: 'skipped' })),
+    ...results.success.map(r => ({ ...r, status: 'success' }))
+  ];
+  
+  // Create table rows
+  allResults.forEach(item => {
+    const row = document.createElement('tr');
+    
+    // Status column with icon
+    const statusCell = document.createElement('td');
+    const statusIcon = document.createElement('span');
+    statusIcon.className = `status-icon ${item.status}`;
+    
+    if (item.status === 'success') {
+      statusIcon.textContent = '✓';
+      statusIcon.title = 'Success';
+    } else if (item.status === 'failed') {
+      statusIcon.textContent = '✗';
+      statusIcon.title = 'Failed';
+    } else {
+      statusIcon.textContent = '⚠';
+      statusIcon.title = 'Skipped';
+    }
+    
+    statusCell.appendChild(statusIcon);
+    row.appendChild(statusCell);
+    
+    // Server name column
+    const serverCell = document.createElement('td');
+    serverCell.className = 'server-name';
+    serverCell.textContent = item.server || 'Unknown Server';
+    row.appendChild(serverCell);
+    
+    // Channel column
+    const channelCell = document.createElement('td');
+    channelCell.className = 'channel-name';
+    channelCell.textContent = item.channel || '-';
+    row.appendChild(channelCell);
+    
+    // Reason column
+    const reasonCell = document.createElement('td');
+    reasonCell.className = 'reason-text';
+    reasonCell.textContent = item.reason || 'Message posted successfully';
+    row.appendChild(reasonCell);
+    
+    tbody.appendChild(row);
+  });
+  
+  // Scroll results into view
+  elements.resultsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Toggle results details
+function toggleResults() {
+  const details = document.querySelector('.results-table-container');
+  if (details.classList.contains('collapsed')) {
+    details.classList.remove('collapsed');
+    elements.toggleResultsBtn.textContent = 'Hide Details';
+  } else {
+    details.classList.add('collapsed');
+    elements.toggleResultsBtn.textContent = 'Show Details';
+  }
+}
+
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'update') {
@@ -208,9 +346,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.data.log) {
       addLog(message.data.log, message.data.logType || 'info');
     }
+  } else if (message.type === 'result') {
+    // Track individual server results
+    const { status, server, channel, reason } = message.data;
+    
+    if (status === 'success') {
+      results.success.push({ server, channel });
+    } else if (status === 'failed') {
+      results.failed.push({ server, channel, reason });
+    } else if (status === 'skipped') {
+      results.skipped.push({ server, channel, reason });
+    }
   } else if (message.type === 'complete') {
     updateUI({ status: 'Completed', statusClass: '' });
     addLog('Completed clicking all servers!', 'success');
+    displayResults();
     stopClicking();
   } else if (message.type === 'error') {
     updateUI({ status: 'Error', statusClass: 'error' });
@@ -224,8 +374,11 @@ elements.startBtn.addEventListener('click', startClicking);
 elements.stopBtn.addEventListener('click', stopClicking);
 elements.clearBtn.addEventListener('click', clearAll);
 elements.clearMessagesBtn.addEventListener('click', clearAllMessages);
+elements.toggleResultsBtn.addEventListener('click', toggleResults);
+elements.themeToggle.addEventListener('click', toggleTheme);
 
 // Initialize
+initTheme();
 updateUI({ 
   status: 'Ready', 
   currentServer: '-', 
