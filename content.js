@@ -11,13 +11,29 @@
   // This function will be injected into the page
   window.clickServers = async function(loop, serverDelay, messages) {
     let shouldStop = false;
+    let isPaused = false;
 
-    // Listen for stop message
+    // Listen for stop / pause / resume messages
     chrome.runtime.onMessage.addListener((message) => {
       if (message.action === 'stop') {
         shouldStop = true;
+        // If currently paused, unblock the pause gate so the loop can exit cleanly
+        isPaused = false;
+      } else if (message.action === 'pause') {
+        isPaused = true;
+      } else if (message.action === 'resume') {
+        isPaused = false;
       }
     });
+
+    // Pause gate: idle here while paused, returning once resumed or stopped.
+    // Position (loop index) and the server list stay alive in the closure,
+    // so resuming continues from exactly where we left off.
+    async function waitWhilePaused() {
+      while (isPaused && !shouldStop) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    }
 
     // Function to detect and expand Discord server folders
     function findAndExpandFolders() {
@@ -928,6 +944,46 @@
               }
             });
             return;
+          }
+
+          // Pause gate (server boundary): if paused, hold here BEFORE starting
+          // the next server. The current server always finishes first, so we
+          // never leave a half-typed message behind. Resume picks up here.
+          if (isPaused) {
+            chrome.runtime.sendMessage({
+              type: 'update',
+              data: {
+                status: 'Paused',
+                statusClass: 'paused',
+                log: `Paused — will resume at server ${i + 1}/${allVisibleServers.length}`,
+                logType: 'info'
+              }
+            });
+
+            await waitWhilePaused();
+
+            // If stopped while paused, exit cleanly
+            if (shouldStop) {
+              chrome.runtime.sendMessage({
+                type: 'update',
+                data: {
+                  status: 'Stopped by user',
+                  log: 'Stopped by user',
+                  logType: 'info'
+                }
+              });
+              return;
+            }
+
+            chrome.runtime.sendMessage({
+              type: 'update',
+              data: {
+                status: 'Clicking servers...',
+                statusClass: 'running',
+                log: `Resumed at server ${i + 1}/${allVisibleServers.length}`,
+                logType: 'success'
+              }
+            });
           }
 
           const server = allVisibleServers[i];

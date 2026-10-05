@@ -1,5 +1,6 @@
 // Side panel script
 let isRunning = false;
+let isPaused = false;
 let currentTabId = null;
 
 const elements = {
@@ -9,6 +10,7 @@ const elements = {
   clickedCount: document.getElementById('clickedCount'),
   progressBar: document.getElementById('progressBar'),
   startBtn: document.getElementById('startBtn'),
+  pauseBtn: document.getElementById('pauseBtn'),
   stopBtn: document.getElementById('stopBtn'),
   clearBtn: document.getElementById('clearBtn'),
   clearMessagesBtn: document.getElementById('clearMessagesBtn'),
@@ -101,7 +103,7 @@ function addLog(message, type = 'info') {
 function updateUI(data) {
   if (data.status) {
     elements.status.textContent = data.status;
-    elements.status.className = `status ${data.statusClass || ''}`;
+    elements.status.className = `status-badge ${data.statusClass || ''}`.trim();
   }
   if (data.currentServer !== undefined) {
     elements.currentServer.textContent = data.currentServer;
@@ -139,9 +141,11 @@ async function startClicking() {
   elements.resultsCard.style.display = 'none';
   
   elements.startBtn.disabled = true;
+  elements.pauseBtn.disabled = false;
   elements.stopBtn.disabled = false;
-  
-  updateUI({ 
+  setPauseButtonState(false);
+
+  updateUI({
     status: 'Starting...', 
     statusClass: 'running',
     clickedCount: 0,
@@ -200,16 +204,63 @@ async function startClicking() {
   }
 }
 
+// Reflect the pause/resume state on the button (label, icon, color)
+function setPauseButtonState(paused) {
+  isPaused = paused;
+  const pauseIcon = elements.pauseBtn.querySelector('.pause-icon');
+  const resumeIcon = elements.pauseBtn.querySelector('.resume-icon');
+  const label = elements.pauseBtn.querySelector('.pause-label');
+
+  if (paused) {
+    elements.pauseBtn.classList.add('is-paused');
+    pauseIcon.style.display = 'none';
+    resumeIcon.style.display = 'block';
+    label.textContent = 'Resume';
+  } else {
+    elements.pauseBtn.classList.remove('is-paused');
+    pauseIcon.style.display = 'block';
+    resumeIcon.style.display = 'none';
+    label.textContent = 'Pause';
+  }
+}
+
+// Toggle pause / resume
+function togglePause() {
+  if (!isRunning) {
+    return;
+  }
+
+  if (isPaused) {
+    // Resume
+    setPauseButtonState(false);
+    if (currentTabId) {
+      chrome.tabs.sendMessage(currentTabId, { action: 'resume' }).catch(() => {});
+    }
+    updateUI({ status: 'Resuming...', statusClass: 'running' });
+    addLog('Resuming automation', 'info');
+  } else {
+    // Pause (takes effect at the next server boundary)
+    setPauseButtonState(true);
+    if (currentTabId) {
+      chrome.tabs.sendMessage(currentTabId, { action: 'pause' }).catch(() => {});
+    }
+    updateUI({ status: 'Pausing after current server...', statusClass: 'paused' });
+    addLog('Pause requested — will hold after the current server finishes', 'info');
+  }
+}
+
 // Stop clicking
 function stopClicking() {
   isRunning = false;
   elements.startBtn.disabled = false;
+  elements.pauseBtn.disabled = true;
   elements.stopBtn.disabled = true;
-  
+  setPauseButtonState(false);
+
   if (currentTabId) {
     chrome.tabs.sendMessage(currentTabId, { action: 'stop' }).catch(() => {});
   }
-  
+
   updateUI({ status: 'Stopped', statusClass: '' });
   addLog('Stopped clicking', 'info');
 }
@@ -371,6 +422,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Event listeners
 elements.startBtn.addEventListener('click', startClicking);
+elements.pauseBtn.addEventListener('click', togglePause);
 elements.stopBtn.addEventListener('click', stopClicking);
 elements.clearBtn.addEventListener('click', clearAll);
 elements.clearMessagesBtn.addEventListener('click', clearAllMessages);
